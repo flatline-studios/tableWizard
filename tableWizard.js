@@ -935,24 +935,6 @@
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     // INITIALISE THE PLUGIN
     //
     // Run the init function, which sets everything up correctly.
@@ -965,16 +947,69 @@
 
   };
   
-  // Plugin defaults – added as a property on our plugin function.
+  // Plugin defaults – added as a property on the plugin function.
   // These are GLOBAL, across all applications of the tableWizard plugin.
   $.fn.tableWizard.defaults = {
+    
     table: {
+
+      // The name of the outer wrapper.
+      //    If it doesn't exist, it will be created.
+      outerWrapper: 'outer-table-wrapper',
+
+      // The name of the table wrapper.
+      overflowWrapper: 'overflow-fix-wrapper',
+      
+      // The 0-based column index of the first scrollable column.
+      // As there might be multiple static columns on the left-hand side of the table.
       scrollableColFirstIndex: 0,
+      
+      // The ~total~ number of scrollable columns.
+      // As there might be static columns to the right-hand of the table.
       totalNumberOfScrollableCols: 0,
+      
+      // The number of scrollable columns to have at various breakpoints.
+      // If this is equal to 0, then the plugin is disabled.
+      // Otherwise, this should be an object literal (an associative array), where the key is
+      // an integer, which is the maximum-width the tables outerWrapper should be, in pixels, whilst possessing
+      // a given number of scrollable columns, represented by the value.
+      // Once the width of the table exceeds the largest given key, the plugin is effectively disabled.
+      // e.g.,
+      //        360: 1, 568: 2, 800: 3
+      //     Would give:
+      //        1 scrollable column when the table <= 360px wide.
+      //        2 scrollable columns when the table is between > 360px wide, and <= 568px wide.
+      //        3 scrollable columns when the table is between < 568px wide, and <= 800px wide.
+      //        Disable the scrollable columns altogether at > 800px wide, effectively disabling the plugin.
+      //
+      // NOTE: It's important to note that the breakpoints are relative to the TABLE width, not the
+      //       screen!
+      //       This could have a switch, and go on the TODO list, but it's not urgent enough to warrant action
+      //       at the moment.
       numOfScrollableCols: 0,
     },
-    moreInfoPopup: false,       // Don't use the moreInfoPopup plugin.
+
+    navButtons: {
+
+      // The class names for the buttons
+      wrapper: 'column-navigation-button-wrapper',
+      buttons: 'column-navigation-button',
+      prev: 'column-navigation-button_prev',
+      next: 'column-navigation-button_next',
+
+      // The HTML that's to go inside of the buttons.
+      prevHTML: '<<',
+      nextHTML: '>>',
+    },
+
+    animation: {
+
+      // The speed at which the column scroll animation should play at.
+      speed: 0.3,
+    },
+    
     stickyKit: false,           // Don't use the stickyKit plugin.
+    
   };
 
 // End Closure.
