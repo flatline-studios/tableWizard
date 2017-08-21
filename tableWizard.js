@@ -2,8 +2,8 @@
  *  Table Wizard Plugin definition.
  *  
  *  Author  : Kerry Taylor
- *  Version : 0.7
- *  Date    : 18/08/2017
+ *  Version : 0.8
+ *  Date    : 21/08/2017
  *  
  *  Turns an HTML table into a fully responsive one, as well as integrates some other goodies.
  *  
@@ -302,7 +302,7 @@
         $stickyHeaderElements.find(settings.stickyKit._innerWrapper).append(
           $('<div/>', {
           'class': settings.stickyKit.elements,
-          'style': 'display: inline-block; position: relative; top: 0;',         // min-height: 100%;',
+          'style': 'display: inline-block; position: relative; top: 0; box-sizing: border-box;',
           html: $(this).html(),
           })
         );
