@@ -2,8 +2,8 @@
  *  Table Wizard Plugin definition.
  *  
  *  Author  : Kerry Taylor
- *  Version : 0.8
- *  Date    : 21/08/2017
+ *  Version : 0.9
+ *  Date    : 24/08/2017
  *  
  *  Turns an HTML table into a fully responsive one, as well as integrates some other goodies.
  *  
@@ -45,6 +45,9 @@
     
     // Grabs whether or not sticky headers are enabled.
     var stickyHeadersEnabled = (settings.stickyKit !== null && typeof settings.stickyKit === 'object') ? true : false;
+    
+    // // Grabs whether the touchmove functionality should be enabled.
+    // var touchMoveEnabled = (settings.touchMove !== null && typeof settings.touchMove === 'object') ? true : false;
 
     // Adds additional items to the settings, for convenience and cacheability.
     settings.navButtons._wrapper = '.' + settings.navButtons.wrapper;
@@ -106,6 +109,22 @@
     var widthOfColAsPercentage;
     
     var detachedStickyElement;
+    
+    // If touchMove is enabled.
+    if (settings.touchMove) {
+      
+      // Stores the starting x co-ordinate for the touch event.
+      var startXPosition;
+      
+      // Stores the decimalised percentage of the table cell that has been touchmoved.
+      var xMovementAsADecimal;
+      
+      // The previous x co-ordinate of the scrollable elements position.
+      var lastXPosition;
+      
+      // The total difference of x co-ordinate from touchstart to touchend. 
+      var runningTotalOfX = 0;
+    }
     
     
     
@@ -350,9 +369,17 @@
       }
     };
 
-    // Moves the moveable columns to the correct location.
+    // Moves the moveable columns to the correct location, and updates the colLocation instance
+    // variable, if one is given.
     this.moveColumns = function(newColLocation, instant) {
-
+      
+      // D3BUGGER - M00
+      // If newColLocation is a number, update colLocation to the newColLocation value,
+      // Otherwise, we'll just use the colLocation instance variable for the rest of the function.
+      if (!isNaN(newColLocation)) {
+        colLocation = newColLocation;
+      }
+      
       // If instant is null or undefined, then assume it's false.
       if (instant == null) {
         instant = false;
@@ -360,7 +387,7 @@
       
       // Identifies whether or not the last column is out of range (if there will be any
       // empty columns at the end, and if so, adjusts the colLocation so that it's in view.
-      if ((newColLocation + numOfScrollableCols) > settings.table.totalNumberOfScrollableCols) {
+      if ((colLocation + numOfScrollableCols) > settings.table.totalNumberOfScrollableCols) {
         colLocation = settings.table.totalNumberOfScrollableCols - numOfScrollableCols;
       }
 
@@ -418,6 +445,16 @@
           // detachedStickyElement = settings.stickyKit.$wrapper.detach();
         }
         
+        
+        // If the touchMove functionality is enabled...
+        if (settings.touchMove) {
+          
+          // Disable the touch events.
+          $scrollableElements.off('touchstart.tableWizardNavTouchStart');
+          $scrollableElements.off('touchstart.tableWizardNavTouchMove');
+          $scrollableElements.off('touchstart.tableWizardNavTouchEnd');
+        }
+        
       } else {
         
         // Calculates the percentage width that each column should be, relative to the width of the table.
@@ -465,6 +502,23 @@
               + '%');
           
         }
+        
+        // If the touchMove functionality is enabled.
+        if (settings.touchMove) {
+          
+          // Touch start event handler.
+          $scrollableElements.on('touchstart.tableWizardNavTouchStart', navTouchStartHandler);
+          
+          
+          // Touch move event handler.
+          $scrollableElements.on('touchmove.tableWizardNavTouchMove', navTouchMoveHandler);
+
+
+          // Event that fires at the end of the touch move event.
+          $scrollableElements.on('touchend.tableWizardNavTouchEnd', navTouchEndHandler);
+          
+        }
+        
       }
       
     }
@@ -547,59 +601,6 @@
         initStickyHeaders();
       }
       
-      
-      
-      // INITIALISATION
-      //
-      // Triggers the resize event.
-      // $(window).trigger('resize.tableWizardWindowResize');
-      
-      /*
-      // If the tables functionality should be disabled, reset any changes made.
-      if (numOfScrollableCols === 0) {
-
-        // Resets the width of the table and removes the forced fixed layout.
-        $table.css('table-layout', '').width('');
-        
-        // Resets the width of the table columns.
-        $table.find(columnHeaderSelector).width('');
-        
-        // Clears the transforms off of the moveable elements.
-        $scrollableElements.css('transform', '');
-
-        // Detaches (as opposed to removes) the sticky header wrapper and all of its content.
-        $('.sticky-header-wrapper').detach();
-
-        // Removes the overflow fix wrapper, so it doesn't affect the native position sticky on the
-        // table header.
-        $table.unwrap(settings.table._overflowWrapper);
-
-      } else {
-
-        // Allow the ability to decide how much width the row header should occupy. 
-        // var totalNumOfVisibleColumns = totalNumOfCols - 
-        
-        // Set up the table for mobile use.
-        var widthOfCol = 100 / (numOfScrollableCols + 1);
-
-        // Sets the width of the nav button wrapper. 
-        settings.navButtons.$wrapper.width(numOfScrollableCols * widthOfCol + '%');
-
-        // Sets the width of the table, and ensures that it's layout is fixed.
-        $table.css('table-layout', 'fixed').width(totalNumOfCols * widthOfCol + '%');
-
-        // Sets the width of the table columns.
-        $table.find(columnHeaderSelector).width(widthOfCol + '%');
-
-
-        // TODO: Move all of this to its own function.
-        //
-        // If the sticky header is required, and it doesn't already exist.
-        if (hasStickyHeader && ($('.sticky-header-wrapper').length < 1)) {
-          createStickyHeader($scrollableColumnHeaders, $scrollableElements);
-        }
-      */
-      
       // Refactors the table to represent the given number of scrollable columns.
       $table.refactorTable();
       
@@ -625,7 +626,7 @@
       
       // Attaches the navigation buttons click handler to its wrapper, once it's created.
       // This needs to go in here as there is no gauranteed element available to attach
-      // the handler to before this point of this point.
+      // the handler to before this point.
       settings.navButtons.$wrapper.on('click.tableWizardNavButtons',
                                       settings.navButtons._buttons, navButtonsClickHandler);
     
@@ -708,172 +709,60 @@
       }
     }
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    /**
-     * settings.navButtons.$wrapper
-     * settings.navButtons.$buttons
-     * settings.navButtons.$prev
-     * settings.navButtons.$next
-     * settings.table.$outerWrapper
-     * settings.table.$overflowWrapper
-     * settings.stickyKit.$wrapper
-     * settings.stickyKit.$elements
-     */
-    
-    /*
-    function() {
-      
-      // Grabs the new width of the outerWrapper, to decide which defined breakpoint the table currently falls in to.
-      outerWrapperWidth = settings.table.$outerWrapper.width();
-      
-      // If the current number of scrollable columns doesn't equal the new number of scrollable columns,
-      // then the tables width has passed a table breakpoint size, and should be refactored to accommodate that.
-      // NOTE: This will update the numOfScrollableCols AFTER the if statement has been evaluated...
-      //    i.e., the numOfScrollableCols, within the context of the if conditional statement will remain constant
-      //          even though, the getNumOfScrollableCols() function alters it.
-      //          Bearing that in mind, after the if conditional statement is evaluated, the numOfScrollableCols
-      //          will hold the new, updated value.
-      if (numOfScrollableCols !== (numOfScrollableCols = getNumOfScrollableCols())) {
-        
-        // Adjusts the table to have the correct number of scrollable columns.
-        $table.refactorTable();
-        
-        // If the the plugin is re-enabled, then reinstantiate it to its previous column location.
-        if (numOfScrollableCols > 0) {
-          
-          // Moves the scrollable columns to the correct position, in case when the
-          // table is refactored, the furthest right column becomes empty.
-          $table.moveColumns(colLocation, true);
+    // Grabs the required values for touch movement at the start of touch.
+    var navTouchStartHandler = function(e) {
+            
+      // Grabs the x position at the start of the touch of the first finger, taking into account its
+      // current column location.
+      startXPosition = e.originalEvent.touches[0].clientX + (colLocation * $(this).outerWidth());
 
-          // Updates the buttons to be disabled if necessary.
-          $table.updateButtons();
-          
-        }
-      }
-      
-      // Saves the current breakpoint value.
-      var oldBreakpoint = breakpoint.value;
+      // Sets a movement value on start, so if the screen is just tapped, after the buttons have
+      // been used for navigation, then the xMovementAsADecimal won't have been updated, as
+      // the touchmove event won't of ever fired.
+      xMovementAsADecimal = -colLocation;
 
-      // Refreshes the breakpoint value, to hold the current breakpoint.
-      breakpoint.refreshValue();
-      
-      // If the breakpoint value has changed, alter the layout accordingly.
-      if (oldBreakpoint !== breakpoint.value) {
+    }
+    
+    // Animates the movement of the scrollable columns as they're swiped around.
+    var navTouchMoveHandler = function(e) {
 
-        // Saves the current number of scrollable columns.
-        var oldNumOfScrollableCols = numOfScrollableCols;
+      // Grabs the x touch co-ordinate of the first finger as it moves.
+      var currentXPosition = e.originalEvent.touches[0].clientX;
 
-        // Adjusts the number of scrollable columns, and reinitialises the table depending on
-        // which breakpoint the viewport has reached.
-        switch (breakpoint.value) {
+      // Calculates the distance and direction the first finger has moved across the screen.
+      var xMovement = (currentXPosition - startXPosition);
 
-          case 'phone-p':
-            numOfScrollableCols = 1;
-            hasStickyHeader = true;
-            break;
+      // Convers the distance and direction of the first fingers movement into a decimal, and
+      // then into a percentage.
+      xMovementAsADecimal = xMovement / $(this).outerWidth();
+      var xMovementAsAPercentage = xMovementAsADecimal * 100;
 
-          case 'phone-l':
-            numOfScrollableCols = 2;
-            hasStickyHeader = true;
-            break;
+      // Moves the columns.
+      TweenMax.set($scrollableElements, {
+        xPercent: function() { return xMovementAsAPercentage; },
+      });
 
-          case 'tablet-p':
-            numOfScrollableCols = 3;
-            hasStickyHeader = true;
-            break;
+    }
+    
+    // Finishes the touch movement by setting the necessary values, and ensuring that
+    // the correct column is set.
+    var navTouchEndHandler = function(e) {
+            
+      // Sets the colLocation to have the rounded x position present at the end of the touch.
+      colLocation = -(Math.round(xMovementAsADecimal));
 
-          case 'tablet-l':
-            numOfScrollableCols = 0;
-            hasStickyHeader = false;
-            break;
-
-          default:
-            numOfScrollableCols = 0;
-            hasStickyHeader = false;
-
-        }
-
-        init($columnHeaders, totalNumOfCols, numOfScrollableCols, colLocation, hasStickyHeader, $scrollableColumnHeaders);
-
+      // If the colLocation is less than 0, snap to the first column.
+      if (colLocation < 0) {
+        colLocation = 0;
       }
 
+      // Moves the columns.
+      $table.moveColumns(colLocation, false);
 
-*/
-      // // If the sticky header is currently enabled, resize it to over the headers.
-      // if (hasStickyHeader) {
-      //   resizeStickyHeaders($('.sticky-header-wrapper'), $('.sticky-header'), $('.product-comparison__column-header').not('.product-comparison__row-header'), $navButtonWrapper);
-      // }
-    /*
-    });
-    */
-    
-    
-    
-    
-    
-    
-    /*
-//    sticky-wrapper              =   STATIC:
-//                                  position: absolute;
-//                                  overflow: hidden;
-//                                  z-index: 1;
-//                                  top: 0;
-//                                  // instead of calculating left, apply:
-//                                  right: 0;
-//
-//                                    CALCULATED BY JS:
-//                                  // Can be calculated as a percentage of the total width, when the table is refactored.
-//                                  // width: whatever the nav buttons wrapper is;
-                                  [[ CALCULATED ON EACH RESIZE UNFORTUNATELY =( ]]
-                                  [[ CALCULATED ONCE??? ]]
-                                  height: whatever the column headers height is;
-//                                  // left: whatever the nav buttons wrapper position(?) is;
-                     
-//    sticky-header-inner-wrapper =   STATIC:
-//                                  position: absolute;
-//                                  min-height: 100%;
+      // Updates the buttons.
+      $table.updateButtons();
 
-//                                    CALCULATED BY JS:
-//                                  width: (100 * total number of scrollable columns);
-    
-    sticky-header               =   STATIC:
-                                  display: inline-block;
-                                  position: relative;
-                                  top: 0;
-                                  min-height: 100%;
-
-//                                    CALCULATED BY JS:
-//                                  [CALCULATED ONCE ON INIT]
-//                                  min-width: (100 / total number of scrollable columns) + '%';
-    */
-    
+    }
     
     
     
@@ -1009,6 +898,8 @@
     },
     
     stickyKit: false,           // Don't use the stickyKit plugin.
+    
+    touchMove: false,           // Don't use the touchMove functionality.
     
   };
 
