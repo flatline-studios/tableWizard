@@ -2,8 +2,8 @@
  *  Table Wizard Plugin definition.
  *  
  *  Author  : Kerry Taylor
- *  Version : 0.9
- *  Date    : 24/08/2017
+ *  Version : 1.0
+ *  Date    : 03/09/2017
  *  
  *  Turns an HTML table into a fully responsive one, as well as integrates some other goodies.
  *  
@@ -118,12 +118,6 @@
       
       // Stores the decimalised percentage of the table cell that has been touchmoved.
       var xMovementAsADecimal;
-      
-      // The previous x co-ordinate of the scrollable elements position.
-      var lastXPosition;
-      
-      // The total difference of x co-ordinate from touchstart to touchend. 
-      var runningTotalOfX = 0;
     }
     
     
@@ -291,7 +285,7 @@
       if (!$table.parent().hasClass(settings.table.overflowWrapper)) {
         $table.wrap($('<div/>', {
           'class': settings.table.overflowWrapper,
-          'style': 'position: relative; overflow: hidden;'
+          'style': 'position: relative; overflow: hidden; width: 100%; height: 100%;'
         }));
       }
     }
@@ -433,6 +427,9 @@
           'overflow': '',
         });
         
+        // Adds the disabled class to the outer wrapper, to ease responsive styling.
+        settings.table.$outerWrapper.addClass(settings.table.disabledClass);
+        
         // Detaches (as opposed to removes) the sticky header wrapper and all of its content.
         // TODO: This needs sorting...
         // $('.sticky-header-wrapper').detach();
@@ -461,13 +458,13 @@
         widthOfColAsPercentage = getWidthOfColAsPercentage(newNumOfScrollableCols);
         
         // Sets the width of the nav button wrapper.
-        settings.navButtons.$wrapper.width(newNumOfScrollableCols * widthOfColAsPercentage + '%');
+        settings.navButtons.$wrapper.css('width', newNumOfScrollableCols * widthOfColAsPercentage + '%');
         
         // Sets the width of the table, and ensures that it's layout is fixed.
-        $table.css('table-layout', 'fixed').width(totalNumOfCols * widthOfColAsPercentage + '%');
+        $table.css('table-layout', 'fixed').css('width', totalNumOfCols * widthOfColAsPercentage + '%');
         
         // Sets the width of the table columns.
-        $table.find(columnHeaderSelector).width(widthOfColAsPercentage + '%');
+        $table.find(columnHeaderSelector).css('width', widthOfColAsPercentage + '%');
         
         // Shows the navigation buttons.
         settings.navButtons.$wrapper.show();
@@ -477,6 +474,9 @@
           'position': 'relative',
           'overflow': 'hidden'
         });
+        
+        // Removes the disabled class from the outer wrapper, to ease responsive styling.
+        settings.table.$outerWrapper.removeClass(settings.table.disabledClass);
         
         // If sticky headers are enabled...
         if (stickyHeadersEnabled) {
@@ -494,10 +494,10 @@
           // settings.table.$overflowWrapper.prepend(detachedStickyElement);
           
           // Adjust the width of the sticky wrapper.
-          settings.stickyKit.$wrapper.width(newNumOfScrollableCols * widthOfColAsPercentage + '%');
+          settings.stickyKit.$wrapper.css('width', newNumOfScrollableCols * widthOfColAsPercentage + '%');
           
           // Sets the percentage width of the inner sticky wrapper.
-          settings.stickyKit.$innerWrapper.width(
+          settings.stickyKit.$innerWrapper.css('width',
             ((100 * settings.table.totalNumberOfScrollableCols) / newNumOfScrollableCols)
               + '%');
           
@@ -707,6 +707,23 @@
       if (numOfScrollableCols > 0 && stickyHeadersEnabled) {
         refactorStickyHeaders();
       }
+      
+      // Small hack to force a reflow of the table container.
+      // Web-kit has an issue where, under certain conditions, styles won't clear/apply correctly.
+      // NOTE: There is a performance penalty to enabling this setting, but it's
+      // worth trying it to prevent any jank that might be present.
+      if (settings.forceReflow) {
+        
+        // Grab the current scroll position, a reflow will jump the window to the top.
+        var scrollPosition = $(window).scrollTop();
+        
+        // Reflow the outer wrapper.
+        settings.table.$outerWrapper.hide().show(0);
+        
+        // Returns the windows scroll position to where it was before the reflow.
+        $(window).scrollTop(scrollPosition);
+      }
+      
     }
     
     // Grabs the required values for touch movement at the start of touch.
@@ -775,14 +792,20 @@
       // Grabs the width VALUE that the sticky wrapper should be.
       var curWidthValue = settings.navButtons.$wrapper.width();
       
+      // Grabs the width VALUE that the navButtons wrapper is, including any padding or borders,
+      // so that the correct right value can be calculated.
+      var curWidthValueIncBorders = settings.navButtons.$wrapper.outerWidth();
+      
       // Calculates what the 'right' value should be when the sticky wrapper is fixed.
       var globalRightValue = Math.round(
         $(window).width() -
           (
             settings.navButtons.$wrapper.offset().left
+            // + curWidthValueIncBorders
             + curWidthValue
           )
         ) + 'px';
+          
       
       // Adds functionality to the event listeners of the sticky wrapper.
       // The stick and unbottom events adjust the right value relative to the viewport.
@@ -794,6 +817,7 @@
           settings.stickyKit.$wrapper.css({
             'right': globalRightValue,
             'width': curWidthValue,
+            // 'width': curWidthValueIncBorders,
           });
         })
         .off('sticky_kit:unstick').on('sticky_kit:unstick', function(e) {
@@ -814,6 +838,7 @@
           settings.stickyKit.$wrapper.css({
             'right': globalRightValue,
             'width': curWidthValue,
+            // 'width': curWidthValueIncBorders,
           });
         });
       
@@ -848,6 +873,12 @@
 
       // The name of the table wrapper.
       overflowWrapper: 'overflow-fix-wrapper',
+      
+      // The class name to be applied when the numOfScrollableCols is set to 0.
+      // This is used as the breakpoints for the table are relative to the table width, not the
+      // viewport, so applying a class to the outerWrapper makes it a lot easier to style everything
+      // appropriately.
+      disabledClass: 'no-responsive-table',
       
       // The 0-based column index of the first scrollable column.
       // As there might be multiple static columns on the left-hand side of the table.
@@ -900,6 +931,8 @@
     stickyKit: false,           // Don't use the stickyKit plugin.
     
     touchMove: false,           // Don't use the touchMove functionality.
+    
+    forceReflow: false,         // Don't force the table to reflow on page resize.
     
   };
 
